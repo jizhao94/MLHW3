@@ -153,7 +153,7 @@ def slice_time_data(data, start_time, end_time):
 	start_time, string
 	end_time, string
 	'''
-    return data[(data['date_posted'] >= start_time) & (data['date_posted'] <= end_time)]
+	return data[(data['date_posted'] >= start_time) & (data['date_posted'] <= end_time)]
 
 
 '''
@@ -165,7 +165,7 @@ def define_clfs_params():
 	Create the dictionary that links models name to the models objects
 	'''
 
-    models = {'BG_N_Estimators_10': BaggingClassifier(n_estimators=10),
+	models = {'BG_N_Estimators_10': BaggingClassifier(n_estimators=10),
               'BG_N_Estimators_100': BaggingClassifier(n_estimators=100),
               'RF_N_Estimators_10': RandomForestClassifier(n_estimators=10, n_jobs=-1),
               'RF_N_Estimators_100': RandomForestClassifier(n_estimators=100, n_jobs=-1),
@@ -180,7 +180,7 @@ def define_clfs_params():
               'KNN_N_10': KNeighborsClassifier(n_neighbors=10),
               'KNN_N_100': KNeighborsClassifier(n_neighbors=100)}
     
-    return models
+	return models
 
 
 def joint_sort_descending(l1, l2):
@@ -207,6 +207,13 @@ def recall_at_k(y_true, y_scores, k):
     recall = recall_score(y_true, preds_at_k)
     return recall
 
+def f1_at_k(y_true, y_scores, k):
+
+	precision = precision_at_k(y_true, y_scores, k)
+	recall = recall_at_k(y_true, y_scores, k)
+
+	return 2 * (precision * recall)/(precision + recall)
+
 
 def plot_precision_recall_n(y_true, y_prob, model_name):
     from sklearn.metrics import precision_recall_curve
@@ -218,8 +225,9 @@ def plot_precision_recall_n(y_true, y_prob, model_name):
 
 
 def clf_loop(models, models_to_run, X_train, X_test, y_train, y_test):
-    results_df = pd.DataFrame(columns=('model_type', 'accuracy', 'f1_score', 'auc-roc','p_at_5',
-                                        'p_at_10', 'p_at_20', 'r_at_5', 'r_at_10', 'r_at_20'))
+    results_df = pd.DataFrame(columns=('model_type', 'accuracy', 'auc-roc','p_at_5',
+                                        'p_at_10', 'p_at_20', 'r_at_5', 'r_at_10', 'r_at_20', 'f1_at_5',
+                                        'f1_at_10', 'f1_at_20'))
     for model_name in models_to_run:
         model = models[model_name]
         if 'SVM' in model_name:
@@ -228,13 +236,16 @@ def clf_loop(models, models_to_run, X_train, X_test, y_train, y_test):
             y_pred_probs = model.fit(X_train, y_train).predict_proba(X_test)[:,1]
         y_pred = model.fit(X_train, y_train).predict(X_test)
         y_pred_probs_sorted, y_test_sorted = zip(*sorted(zip(y_pred_probs, y_test), reverse=True))
-        results_df.loc[len(results_df)] = [model_name, accuracy_score(y_test, y_pred), f1_score(y_test, y_pred),
+        results_df.loc[len(results_df)] = [model_name, accuracy_score(y_test, y_pred),
                                            roc_auc_score(y_test, y_pred_probs),
                                            precision_at_k(y_test_sorted,y_pred_probs_sorted,5.0),
                                            precision_at_k(y_test_sorted,y_pred_probs_sorted,10.0),
                                            precision_at_k(y_test_sorted,y_pred_probs_sorted,20.0),
                                            recall_at_k(y_test_sorted, y_pred_probs_sorted, 5.0),
                                            recall_at_k(y_test_sorted, y_pred_probs_sorted, 10.0),
-                                           recall_at_k(y_test_sorted, y_pred_probs_sorted, 20.0)]
+                                           recall_at_k(y_test_sorted, y_pred_probs_sorted, 20.0),
+                                           f1_at_k(y_test_sorted, y_pred_probs_sorted, 5.0),
+                                           f1_at_k(y_test_sorted, y_pred_probs_sorted, 10.0),
+                                           f1_at_k(y_test_sorted, y_pred_probs_sorted, 20.0)]
         plot_precision_recall_n(y_test, y_pred_probs, model_name)
     return results_df
